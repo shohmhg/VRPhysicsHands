@@ -1,0 +1,110 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.XR;
+using UnityEngine.XR.Interaction.Toolkit;
+
+
+public class PhysicsHand : MonoBehaviour
+{
+    public Transform xr;                      //XR Origin transform
+    public ActionBasedController aController; //XR Controller (Action Based)
+    Rigidbody rigid;
+
+    [SerializeField, Range(0, 100f)] float maxPositionChange = 75f;
+    [SerializeField, Range(0, 100f)] float maxRotationChange = 75f;
+    [SerializeField, Range(0, 1f)] float slowVelocity = 1f;
+    [SerializeField, Range(0, 1f)] float slowAngularVelocity = 1f;
+
+    Vector3 targetPosition = Vector3.zero;
+    Quaternion targetRotation = Quaternion.identity;
+
+    void Awake() 
+    {
+        rigid = GetComponent<Rigidbody>();
+    }
+    
+    void Start()
+    {
+        UpdateTracking(aController);
+        MoveUsingTransform();
+        RotateUsingTransform(); 
+    }
+    
+    void FixedUpdate() 
+    {
+        MoveUsingPhysics();
+        RotateUsingPhysics();
+    }
+    
+    void Update()
+    {
+        UpdateTracking(aController);
+    }
+
+    void UpdateTracking(ActionBasedController actionBasedController)
+    {
+        targetPosition = actionBasedController.positionAction.action.ReadValue<Vector3>() + xr.localPosition; //Position Offset
+        targetRotation = actionBasedController.rotationAction.action.ReadValue<Quaternion>();
+    }
+    
+    void MoveUsingTransform()
+    {
+        rigid.velocity = Vector3.zero;
+        transform.position = targetPosition;
+    }
+    
+    void RotateUsingTransform()
+    {
+        rigid.angularVelocity = Vector3.zero;
+        transform.rotation = targetRotation;
+    }
+    
+    void MoveUsingPhysics()
+    {
+        rigid.velocity *= slowVelocity;
+
+        Vector3 velocity = FindNewVelocity();
+
+        if(IsValidVelocity(velocity.x))
+        {
+            float maxChange = maxPositionChange * Time.deltaTime;
+            rigid.velocity = Vector3.MoveTowards(rigid.velocity, velocity, maxChange);
+        }
+    }
+    
+    Vector3 FindNewVelocity()
+    {
+        Vector3 differance = targetPosition - rigid.position;
+        return differance / Time.deltaTime;
+    }
+    
+    void RotateUsingPhysics()
+    {
+        rigid.angularVelocity *= slowAngularVelocity;
+
+        Vector3 angularVelocity = FindNewAngularVelocity();
+
+        if(IsValidVelocity(angularVelocity.x))
+        {
+            float maxChange = maxRotationChange * Time.deltaTime;
+            rigid.angularVelocity = Vector3.MoveTowards(rigid.angularVelocity, angularVelocity, maxChange);
+        }
+    }
+
+    Vector3 FindNewAngularVelocity()
+    {
+        Quaternion difference = targetRotation * Quaternion.Inverse(rigid.rotation);
+        difference.ToAngleAxis(out float angle, out Vector3 axis);
+
+        if(angle > 180)
+            angle -= 360;
+
+        return (axis  * angle * Mathf.Deg2Rad) / Time.deltaTime;
+    }
+
+    bool IsValidVelocity(float value)
+    {
+        return !float.IsNaN(value) && !float.IsInfinity(value);
+    }
+}
