@@ -7,8 +7,7 @@ using UnityEngine.XR.Interaction.Toolkit;
 
 public class PhysicsHand : MonoBehaviour
 {
-    public Transform xr;                      //XR Origin transform
-    public ActionBasedController aController; //XR Controller (Action Based)
+    public Transform controller;                //VR Controller
     Rigidbody rigid;
 
     [SerializeField, Range(0, 100f)] float maxPositionChange = 75f;
@@ -26,26 +25,22 @@ public class PhysicsHand : MonoBehaviour
     
     void Start()
     {
-        UpdateTracking(aController);
+        UpdateTracking();
         MoveUsingTransform();
-        RotateUsingTransform(); 
+        RotateUsingTransform();
     }
     
     void FixedUpdate() 
     {
+        UpdateTracking();
         MoveUsingPhysics();
         RotateUsingPhysics();
     }
-    
-    void Update()
-    {
-        UpdateTracking(aController);
-    }
 
-    void UpdateTracking(ActionBasedController actionBasedController)
+    void UpdateTracking()
     {
-        targetPosition = actionBasedController.positionAction.action.ReadValue<Vector3>() + xr.localPosition; //Position Offset
-        targetRotation = actionBasedController.rotationAction.action.ReadValue<Quaternion>();
+        targetPosition = controller.position;
+        targetRotation = controller.rotation;
     }
     
     void MoveUsingTransform()
@@ -75,7 +70,7 @@ public class PhysicsHand : MonoBehaviour
     
     Vector3 FindNewVelocity()
     {
-        Vector3 differance = targetPosition - rigid.position;
+        Vector3 differance = targetPosition - transform.position;
         return differance / Time.deltaTime;
     }
     
@@ -94,11 +89,12 @@ public class PhysicsHand : MonoBehaviour
 
     Vector3 FindNewAngularVelocity()
     {
-        Quaternion difference = targetRotation * Quaternion.Inverse(rigid.rotation);
+        Quaternion difference = targetRotation * Quaternion.Inverse(transform.rotation);
+
         difference.ToAngleAxis(out float angle, out Vector3 axis);
 
-        if(angle > 180)
-            angle -= 360;
+        if(angle > 180f)
+            angle -= 360f;
 
         return (axis  * angle * Mathf.Deg2Rad) / Time.deltaTime;
     }
